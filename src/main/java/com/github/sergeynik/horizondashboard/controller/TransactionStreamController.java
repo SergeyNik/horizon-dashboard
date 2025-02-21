@@ -26,8 +26,8 @@ public class TransactionStreamController {
         return horizonTransactionService.streamTransactions().map(TransactionResponse::getSourceAccount);
     }
 
-    @GetMapping("/stop")
-    public void stopStreamTransactions() {
+    @GetMapping("/stream-stop")
+    public void stopStreamTransactionsWithAdminRights() {
         horizonTransactionService.stop();
     }
 }
