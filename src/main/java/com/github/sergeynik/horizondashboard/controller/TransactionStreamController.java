@@ -22,8 +22,8 @@ public class TransactionStreamController {
     }
 
     @GetMapping(value = "/stream-transactions", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<TransactionResponse> transactions() {
-        return horizonTransactionService.streamTransactions();
+    public Flux<String> transactions() {
+        return horizonTransactionService.streamTransactions().map(TransactionResponse::getSourceAccount);
     }
 
     @GetMapping("/stop")
