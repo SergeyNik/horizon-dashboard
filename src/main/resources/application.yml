@@ -1,3 +1,9 @@
 spring:
   application:
     name: horizon-dashboard
+
+server:
+  port: 8080
+
+horizon:
+  url: "https://horizon.stellar.org"
