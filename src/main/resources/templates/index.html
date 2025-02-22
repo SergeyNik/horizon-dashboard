@@ -1,32 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Events with SSE & WebFlux</title>
-    <script>
-        function startSSE() {
-            const eventSource = new EventSource("/stream-transactions");
-
-            eventSource.onmessage = function(event) {
-                const eventList = document.getElementById("event-list");
-                const newEvent = document.createElement("li");
-                newEvent.textContent = event.data;
-                eventList.prepend(newEvent);
-            };
-
-            eventSource.onerror = function() {
-                console.log("SSE connection lost. Retrying...");
-                setTimeout(() => {
-                    eventSource.close();
-                    startSSE();
-                }, 5000);
-            };
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@2.6.0/dist/vuetify.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@2.6.0/dist/vuetify.js"></script>
+    <style>
+        :root {
+            --stellar-yellow: #FDDA24;
+            --stellar-dark: #262626;
+            --stellar-light: #FFFFFF;
         }
-        window.onload = startSSE;
-    </script>
+    </style>
 </head>
 <body>
-<h2>Live Event Stream</h2>
-<ul id="event-list"></ul>
+<div id="app">
+    <v-app>
+        <v-app-bar app color="var(--stellar-yellow)" dark>
+            <v-toolbar-title style="color: var(--stellar-dark);">Live Event Stream</v-toolbar-title>
+        </v-app-bar>
 
+        <v-main style="background-color: var(--stellar-light);">
+            <v-container fluid>
+                <v-row>
+                    <v-col cols="12">
+                        <v-card class="pa-5" color="#D6D3C4">
+                            <v-card-title class="text-primary">Events</v-card-title>
+                            <v-card-text>
+                                <v-row>
+                                    <v-col v-for="(item, index) in events" :key="index" cols="12" md="6" lg="4">
+                                        <v-card class="mb-3" outlined color="var(--stellar-dark)" dark>
+                                            <v-card-title>
+                                                <v-icon v-if="item.successful" color="green">mdi-check-circle</v-icon>
+                                                <v-icon v-else color="red">mdi-alert-circle</v-icon>
+                                                <span class="ml-2">{{ item.sourceAccount }}</span>
+                                            </v-card-title>
+                                            <v-card-text>
+                                                <strong>Created At:</strong> {{ item.createdAt }}<br>
+                                                <strong>Memo:</strong> {{ item.memoValue }}<br>
+                                                <strong>Fee Charged:</strong> {{ item.feeCharged }}<br>
+                                                <strong>Successful:</strong> {{ item.successful }}
+                                            </v-card-text>
+                                        </v-card>
+                                    </v-col>
+                                </v-row>
+                            </v-card-text>
+                        </v-card>
+                    </v-col>
+                </v-row>
+            </v-container>
+        </v-main>
+    </v-app>
+</div>
+
+<script>
+    new Vue({
+        el: '#app',
+        vuetify: new Vuetify(),
+        data: {
+            events: []
+        },
+        mounted() {
+            this.startSSE();
+        },
+        methods: {
+            startSSE() {
+                const eventSource = new EventSource("/stream-transactions");
+
+                eventSource.onmessage = (event) => {
+                    try {
+                        const parsedEvent = JSON.parse(event.data);
+                        this.events.unshift(parsedEvent);
+
+                        if (this.events.length > 30) {
+                            this.events.pop();
+                        }
+                    } catch (error) {
+                        console.error("Error parsing event data", error);
+                    }
+                };
+
+                eventSource.onerror = () => {
+                    console.log("SSE connection lost. Retrying...");
+                    setTimeout(() => {
+                        eventSource.close();
+                        this.startSSE();
+                    }, 5000);
+                };
+            }
+        }
+    });
+</script>
 </body>
 </html>
