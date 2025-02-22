@@ -1,13 +1,32 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Live Events with SSE & WebFlux</title>
+    <script>
+        function startSSE() {
+            const eventSource = new EventSource("/stream-transactions");
+
+            eventSource.onmessage = function(event) {
+                const eventList = document.getElementById("event-list");
+                const newEvent = document.createElement("li");
+                newEvent.textContent = event.data;
+                eventList.prepend(newEvent);
+            };
+
+            eventSource.onerror = function() {
+                console.log("SSE connection lost. Retrying...");
+                setTimeout(() => {
+                    eventSource.close();
+                    startSSE();
+                }, 5000);
+            };
+        }
+        window.onload = startSSE;
+    </script>
 </head>
 <body>
-<h1>Recent Transactions</h1>
-<ul>
-    <li th:each="tx : ${transactions}" th:text="${tx.hash + ' - ' + tx.createdAt}"></li>
-</ul>
+<h2>Live Event Stream</h2>
+<ul id="event-list"></ul>
+
 </body>
 </html>
