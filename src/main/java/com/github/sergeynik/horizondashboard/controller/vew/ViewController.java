@@ -1,4 +1,4 @@
-package com.github.sergeynik.horizondashboard.controller;
+package com.github.sergeynik.horizondashboard.controller.vew;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;

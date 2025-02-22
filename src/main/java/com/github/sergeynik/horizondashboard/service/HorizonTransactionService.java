@@ -45,7 +45,7 @@ public class HorizonTransactionService {
         return new EventListener<>() {
             @Override
             public void onEvent(TransactionResponse transactionResponse) {
-                log.info("Received transaction response: {}", transactionResponse);
+                log.info("Received transaction response: {}", transactionResponse.getSourceAccount());
                 sink.tryEmitNext(transactionResponse);
             }
 
