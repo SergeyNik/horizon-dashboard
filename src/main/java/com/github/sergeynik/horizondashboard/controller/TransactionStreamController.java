@@ -25,9 +25,4 @@ public class TransactionStreamController {
     public Flux<String> transactions() {
         return horizonTransactionService.streamTransactions().map(TransactionResponse::getSourceAccount);
     }
-
-    @GetMapping("/stream-stop")
-    public void stopStreamTransactionsWithAdminRights() {
-        horizonTransactionService.stop();
-    }
 }

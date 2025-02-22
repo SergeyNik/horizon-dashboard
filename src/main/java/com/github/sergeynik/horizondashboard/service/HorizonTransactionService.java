@@ -21,12 +21,24 @@ public class HorizonTransactionService {
     private static final String CURSOR_NOW = "now";
     private final Server horizonServer;
     private final ConcurrentMap<String, SSEStream<TransactionResponse>> singleStream;
-    private final Sinks.Many<TransactionResponse> sink;
 
     public HorizonTransactionService(Server horizonServer) {
         this.horizonServer = horizonServer;
         this.singleStream = new ConcurrentHashMap<>(1);
-        this.sink = Sinks.many().multicast().onBackpressureBuffer();
+    }
+
+    public Flux<TransactionResponse> streamTransactions() {
+        Sinks.Many<TransactionResponse> sink = Sinks.many().unicast().onBackpressureBuffer();
+        singleStream.computeIfAbsent(CURSOR_NOW, (cursor) -> {
+            TransactionsRequestBuilder cursored = horizonServer.transactions().cursor(CURSOR_NOW);
+            return cursored.stream(txStreamListener(sink));
+        });
+        return sink.asFlux()
+                .doOnSubscribe(subscription -> log.info("Subscriber connected!"))
+                .doOnCancel(() -> {
+                    stop();
+                    log.info("SSE stream is closed because the client has closed the connection");
+                });
     }
 
     private EventListener<TransactionResponse> txStreamListener(Sinks.Many<TransactionResponse> sink) {
@@ -44,27 +56,11 @@ public class HorizonTransactionService {
         };
     }
 
-    public Flux<TransactionResponse> streamTransactions() {
-        singleStream.computeIfAbsent(CURSOR_NOW, (cursor) -> {
-            TransactionsRequestBuilder cursored = horizonServer.transactions().cursor(CURSOR_NOW);
-            return cursored.stream(txStreamListener(sink));
-        });
-        return sink.asFlux().doOnSubscribe(subscription -> log.info("New subscriber connected!"));
-    }
-
-    public void stop() {
+    private void stop() {
         if (!singleStream.isEmpty()) {
             singleStream.get(CURSOR_NOW).close();
             singleStream.clear();
             log.info("Stream Stopped!");
         }
-        log.info("currentSubscriberCount {} before!", sink.currentSubscriberCount());
-        Sinks.EmitResult result = sink.tryEmitComplete();
-        if (result.isSuccess()) {
-            log.info("Sink completed successfully!");
-        } else {
-            log.error("Failed to complete sink: {}", result);
-        }
-        log.info("currentSubscriberCount {} after!", sink.currentSubscriberCount());
     }
 }
