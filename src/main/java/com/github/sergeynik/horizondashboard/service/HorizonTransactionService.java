@@ -41,6 +41,20 @@ public class HorizonTransactionService {
                 });
     }
 
+    public Flux<TransactionResponse> streamTransactionsByAccount(String account) {
+        Sinks.Many<TransactionResponse> sink = Sinks.many().unicast().onBackpressureBuffer();
+        singleStream.computeIfAbsent(CURSOR_NOW, (cursor) -> {
+            TransactionsRequestBuilder cursored = horizonServer.transactions().forAccount(account).cursor(CURSOR_NOW);
+            return cursored.stream(txStreamListener(sink));
+        });
+        return sink.asFlux()
+                .doOnSubscribe(subscription -> log.info("Subscriber connected!"))
+                .doOnCancel(() -> {
+                    stop();
+                    log.info("SSE stream is closed because the client has closed the connection");
+                });
+    }
+
     private EventListener<TransactionResponse> txStreamListener(Sinks.Many<TransactionResponse> sink) {
         return new EventListener<>() {
             @Override
