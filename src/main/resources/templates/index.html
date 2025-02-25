@@ -20,6 +20,16 @@
     <v-app>
         <v-app-bar app color="var(--stellar-yellow)" dark>
             <v-toolbar-title style="color: var(--stellar-dark);">Live Event Stream</v-toolbar-title>
+            <v-spacer></v-spacer>
+            <v-text-field
+                    v-model="searchQuery"
+                    label="Search"
+                    solo
+                    dense
+                    hide-details
+                    append-icon="mdi-magnify"
+                    class="mr-4"
+            ></v-text-field>
         </v-app-bar>
 
         <v-main style="background-color: var(--stellar-light);">
@@ -30,7 +40,7 @@
                             <v-card-title class="text-primary">Events</v-card-title>
                             <v-card-text>
                                 <v-row>
-                                    <v-col v-for="(item, index) in events" :key="index" cols="12" md="6" lg="4">
+                                    <v-col v-for="(item, index) in filteredEvents" :key="index" cols="12" md="6" lg="4">
                                         <v-card class="mb-3" outlined color="var(--stellar-dark)" dark>
                                             <v-card-title>
                                                 <v-icon v-if="item.successful" color="green">mdi-check-circle</v-icon>
@@ -60,16 +70,46 @@
         el: '#app',
         vuetify: new Vuetify(),
         data: {
-            events: []
+            events: [],
+            searchQuery: "",
+            eventSource: null // To store the EventSource instance
         },
-        mounted() {
-            this.startSSE();
+        computed: {
+            // Filter events based on the search query
+            filteredEvents() {
+                if (!this.searchQuery) {
+                    return this.events;
+                }
+                return this.events.filter(event =>
+                    event.sourceAccount.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                    event.memoValue.toLowerCase().includes(this.searchQuery.toLowerCase())
+                );
+            }
+        },
+        watch: {
+            // Watch for changes in searchQuery and restart the SSE connection
+            searchQuery(newQuery) {
+                const regex = /^G[ABCDEFGHIJKLMNOPQRSTUVWXYZ234567]{55}$/;
+                if (regex.test(newQuery)) {
+                    this.startSSE(newQuery);
+                }
+            }
         },
         methods: {
-            startSSE() {
-                const eventSource = new EventSource("/stream-transactions");
+            // Start the EventSource and use the searchQuery as part of the URL
+            startSSE(query) {
+                // If there is an active EventSource, close it before starting a new one
+                if (this.eventSource) {
+                    this.eventSource.close();
+                }
 
-                eventSource.onmessage = (event) => {
+                // Define the SSE URL with the search query (could be a filter on the backend)
+                const url = query ? `/stream/${encodeURIComponent(query)}/transactions` : "/stream/transactions";
+
+                // Start a new EventSource
+                this.eventSource = new EventSource(url);
+
+                this.eventSource.onmessage = (event) => {
                     try {
                         const parsedEvent = JSON.parse(event.data);
                         this.events.unshift(parsedEvent);
@@ -82,11 +122,11 @@
                     }
                 };
 
-                eventSource.onerror = () => {
+                this.eventSource.onerror = () => {
                     console.log("SSE connection lost. Retrying...");
                     setTimeout(() => {
-                        eventSource.close();
-                        this.startSSE();
+                        this.eventSource.close();
+                        this.startSSE(this.searchQuery);
                     }, 5000);
                 };
             }
