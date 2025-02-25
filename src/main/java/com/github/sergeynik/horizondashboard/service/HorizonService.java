@@ -32,8 +32,7 @@ public class HorizonService implements DisposableBean {
     }
 
     public Flux<TransactionResponse> streamTransactionsByAccount(String account) {
-        return horizonSseStreams.computeIfAbsent(Locks.LOCK_CURSOR_NOW_WITH_ACCOUNT,
-                lock -> horizonEventHandler.startForAccount(horizonServer.transactions().forAccount(account).cursor(CURSOR_NOW), () -> dropFlux(lock)));
+        return horizonEventHandler.startForAccount(horizonServer.transactions().forAccount(account).cursor(CURSOR_NOW));
     }
 
     private void dropFlux(Locks lock) {

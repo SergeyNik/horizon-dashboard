@@ -38,18 +38,16 @@ public class HorizonEventHandler {
                 });
     }
 
-    public Flux<TransactionResponse> startForAccount(TransactionsRequestBuilder server, Runnable cleanupState) {
+    public Flux<TransactionResponse> startForAccount(TransactionsRequestBuilder server) {
         Sinks.Many<TransactionResponse> sink = Sinks.many().unicast().onBackpressureBuffer();
         SSEStream<TransactionResponse> sseStream = server.stream(horizonListener.get(sink));
         return sink.asFlux()
                 .doOnCancel(() -> {
                     sseStream.close();
                     sink.tryEmitComplete();
-                    cleanupState.run();
                 })
                 .doOnError(error -> {
                     sseStream.close();
-                    cleanupState.run();
                     log.error("Error occurred while subscribing to transactions", error);
                 });
     }
